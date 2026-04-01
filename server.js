@@ -460,6 +460,12 @@ setInterval(() => {
   });
 }, 60 * 60 * 1000);
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`⚡ Server running at http://localhost:${PORT} (Optimized Mode)`);
-});
+// For local development
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`⚡ Server running at http://localhost:${PORT} (Optimized Mode)`);
+  });
+}
+
+// For Vercel
+export default app;
