@@ -346,190 +346,165 @@
             idleState.classList.add('hidden');
             progressArea.classList.remove('hidden');
             
-            progressTitle.innerText = 'Uploading';
+            progressTitle.innerText = 'Uploading to Cloudinary';
             logs.innerHTML = '<div class="text-brand-500 font-bold mb-4 flex items-center gap-2"><i data-lucide="terminal" class="w-3 h-3"></i> INITIALIZING MIGRATION ENGINE...</div>';
-            stats.innerText = 'Preparing secure upload tunnel...';
+            stats.innerText = 'Uploading CSV to Cloudinary...';
             progressBar.style.width = '0%';
             percentage.innerText = '0%';
             downloadCard.classList.add('hidden');
             lucide.createIcons();
 
-            const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-            const uploadId = crypto.randomUUID();
-
             try {
-                let jobId;
-
-                if (file.size <= CHUNK_SIZE) {
-                    const formData = new FormData();
-                    formData.append('csv', file);
-                    formData.append('effect', imageEffectInput.value);
-
-                    stats.innerText = 'Uploading dataset...';
-                    const res = await new Promise((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', '/api/process');
-                        
-                        xhr.upload.onprogress = (e) => {
-                            if (e.lengthComputable) {
-                                const progress = Math.round((e.loaded / e.total) * 100);
-                                progressBar.style.width = `${progress}%`;
-                                percentage.innerText = `${progress}%`;
-                            }
-                        };
-                        
-                        xhr.onload = () => {
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                resolve({ ok: true, text: () => Promise.resolve(xhr.responseText) });
-                            } else {
-                                resolve({ 
-                                    ok: false, 
-                                    status: xhr.status, 
-                                    statusText: xhr.statusText, 
-                                    text: () => Promise.resolve(xhr.responseText) 
-                                });
-                            }
-                        };
-                        
-                        xhr.onerror = () => reject(new Error('Network Error'));
-                        xhr.send(formData);
-                    });
-
-                    const text = await res.text();
-                    let data;
-                    try { data = JSON.parse(text); } catch(e) {
-                        throw new Error(res.status === 413 ? 'Payload too large (413).' : `Server error: ${res.status}`);
-                    }
-                    if (!res.ok) throw new Error(data.error || 'Initialization failed');
-                    jobId = data.jobId;
-                } else {
-                    for (let i = 0; i < totalChunks; i++) {
-                        const start = i * CHUNK_SIZE;
-                        const end = Math.min(start + CHUNK_SIZE, file.size);
-                        const chunk = file.slice(start, end);
-
-                        const formData = new FormData();
-                        formData.append('chunk', chunk);
-                        formData.append('uploadId', uploadId);
-                        formData.append('chunkIndex', i);
-                        formData.append('totalChunks', totalChunks);
-                        formData.append('fileName', file.name);
-
-                        stats.innerText = `Uploading part ${i + 1} of ${totalChunks}...`;
-
-                        const res = await new Promise((resolve, reject) => {
-                            const xhr = new XMLHttpRequest();
-                            xhr.open('POST', '/api/upload-chunk');
-                            
-                            xhr.upload.onprogress = (e) => {
-                                if (e.lengthComputable) {
-                                    const chunkProgress = e.loaded / e.total;
-                                    const overallProgress = Math.round(((i + chunkProgress) / totalChunks) * 100);
-                                    progressBar.style.width = `${overallProgress}%`;
-                                    percentage.innerText = `${overallProgress}%`;
-                                }
-                            };
-                            
-                            xhr.onload = () => {
-                                if (xhr.status >= 200 && xhr.status < 300) {
-                                    resolve({ ok: true, text: () => Promise.resolve(xhr.responseText) });
-                                } else {
-                                    resolve({ 
-                                        ok: false, 
-                                        status: xhr.status, 
-                                        statusText: xhr.statusText, 
-                                        text: () => Promise.resolve(xhr.responseText) 
-                                    });
-                                }
-                            };
-                            
-                            xhr.onerror = () => reject(new Error('Network Error'));
-                            xhr.send(formData);
-                        });
-
-                        if (!res.ok) {
-                            const errorData = await res.text();
-                            let errorMsg = `Chunk ${i + 1} failed with status ${res.status}`;
-                            try {
-                                const json = JSON.parse(errorData);
-                                if (json.error) errorMsg = json.error;
-                            } catch(e) {}
-                            throw new Error(errorMsg);
-                        }
-                    }
-
-                    stats.innerText = 'Finalizing upload...';
-                    const res = await fetch('/api/process-chunked', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            uploadId,
-                            totalChunks,
-                            fileName: file.name,
-                            effect: imageEffectInput.value
-                        })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Finalization failed');
-                    jobId = data.jobId;
-                }
+                // Step 0: Get Cloudinary config from backend
+                const configRes = await fetch('/api/upload-signature');
+                const config = await configRes.json();
+                if (!configRes.ok) throw new Error(config.error || 'Failed to get upload config');
                 
+                const { cloud_name, uploadPreset } = config;
+                const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`;
+
+                // Step 1: Upload directly to Cloudinary
+                const cloudinaryFormData = new FormData();
+                cloudinaryFormData.append('file', file);
+                cloudinaryFormData.append('upload_preset', uploadPreset);
+
+                let csvUrl;
+                
+                const uploadRes = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', cloudinaryUrl);
+                    
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const progress = Math.round((e.loaded / e.total) * 60); // 0-60% for upload
+                            progressBar.style.width = `${progress}%`;
+                            percentage.innerText = `${progress}%`;
+                        }
+                    };
+                    
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve({ ok: true, text: () => Promise.resolve(xhr.responseText) });
+                        } else {
+                            resolve({ 
+                                ok: false, 
+                                status: xhr.status, 
+                                statusText: xhr.statusText, 
+                                text: () => Promise.resolve(xhr.responseText) 
+                            });
+                        }
+                    };
+                    
+                    xhr.onerror = () => reject(new Error('Network Error'));
+                    xhr.send(cloudinaryFormData);
+                });
+
+                const uploadText = await uploadRes.text();
+                let uploadData;
+                try { uploadData = JSON.parse(uploadText); } catch(e) {
+                    throw new Error(`Cloudinary upload failed: ${uploadRes.status}`);
+                }
+                if (!uploadRes.ok) throw new Error(uploadData.error?.message || 'Cloudinary upload failed');
+                
+                csvUrl = uploadData.secure_url;
+                logs.innerHTML += '<div class="flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300"><span class="text-emerald-500 opacity-50 mt-0.5"><i data-lucide="check-circle" class="w-3 h-3"></i></span><span class="text-emerald-400">✓ CSV uploaded to Cloudinary successfully</span></div>';
+                lucide.createIcons();
+
+                // Step 2: Send URL to backend for processing
                 progressTitle.innerText = 'Processing';
-                const eventSource = new EventSource('/api/progress/' + jobId);
-                eventSource.onmessage = (e) => {
-                    const data = JSON.parse(e.data);
-                    
-                    if (data.logs && data.logs.length > 0) {
-                        data.logs.forEach(log => {
-                            const div = document.createElement('div');
-                            div.className = 'flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300';
-                            
-                            let icon = 'info';
-                            let iconColor = 'text-brand-500';
-                            let textColor = 'text-zinc-300';
+                stats.innerText = 'Starting image migration...';
+                progressBar.style.width = '60%';
+                percentage.innerText = '60%';
 
-                            if (log.startsWith('Failed')) {
-                                icon = 'alert-triangle';
-                                iconColor = 'text-yellow-500';
-                                textColor = 'text-yellow-500/80';
-                            } else if (log.startsWith('Fatal')) {
-                                icon = 'x-circle';
-                                iconColor = 'text-red-500';
-                                textColor = 'text-red-400';
-                            } else if (log.includes('completed')) {
-                                icon = 'check-circle';
-                                iconColor = 'text-emerald-500';
-                                textColor = 'text-emerald-400';
-                            }
-                            
-                            div.innerHTML = `
-                                <span class="${iconColor} opacity-50 mt-0.5"><i data-lucide="${icon}" class="w-3 h-3"></i></span>
-                                <span class="${textColor}">${log}</span>
-                            `;
-                            logs.appendChild(div);
-                            lucide.createIcons();
-                        });
-                        logs.scrollTop = logs.scrollHeight;
-                    }
+                const processRes = await fetch('/api/process-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        csvUrl,
+                        fileName: file.name,
+                        effect: imageEffectInput.value
+                    })
+                });
 
-                    stats.innerText = `${data.stats.success + data.stats.failed} / ${data.stats.total} images processed`;
-                    const pct = data.stats.total ? Math.round((data.stats.success + data.stats.failed) / data.stats.total * 100) : 0;
-                    progressBar.style.width = pct + '%';
-                    percentage.innerText = pct + '%';
-                    
-                    if (data.status === 'done') {
-                        eventSource.close();
-                        downloadBtn.href = '/api/download/' + jobId;
-                        downloadCard.classList.remove('hidden');
-                        stats.innerText = 'Process completed successfully.';
-                        startBtn.disabled = false;
-                    } else if (data.status === 'fatal') {
-                        eventSource.close();
-                        stats.innerText = 'Process terminated with errors.';
-                        startBtn.disabled = false;
+                const processData = await processRes.json();
+                if (!processRes.ok) throw new Error(processData.error || 'Processing failed');
+                
+                const jobId = processData.jobId;
+                progressBar.style.width = '70%';
+                percentage.innerText = '70%';
+
+                // Step 3: Poll for progress
+                let pollCount = 0;
+                const pollProgress = setInterval(async () => {
+                    pollCount++;
+                    try {
+                        const progressRes = await fetch(`/api/progress/${jobId}`);
+                        const progressData = await progressRes.json();
+
+                        if (progressData.logs && progressData.logs.length > 0) {
+                            progressData.logs.forEach(log => {
+                                if (!logs.innerText.includes(log)) {
+                                    const div = document.createElement('div');
+                                    div.className = 'flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300';
+                                    
+                                    let icon = 'info';
+                                    let iconColor = 'text-brand-500';
+                                    let textColor = 'text-zinc-300';
+
+                                    if (log.startsWith('Failed')) {
+                                        icon = 'alert-triangle';
+                                        iconColor = 'text-yellow-500';
+                                        textColor = 'text-yellow-500/80';
+                                    } else if (log.startsWith('Fatal')) {
+                                        icon = 'x-circle';
+                                        iconColor = 'text-red-500';
+                                        textColor = 'text-red-400';
+                                    } else if (log.includes('completed') || log.includes('✓')) {
+                                        icon = 'check-circle';
+                                        iconColor = 'text-emerald-500';
+                                        textColor = 'text-emerald-400';
+                                    }
+                                    
+                                    div.innerHTML = `
+                                        <span class="${iconColor} opacity-50 mt-0.5"><i data-lucide="${icon}" class="w-3 h-3"></i></span>
+                                        <span class="${textColor}">${log}</span>
+                                    `;
+                                    logs.appendChild(div);
+                                    lucide.createIcons();
+                                }
+                            });
+                            logs.scrollTop = logs.scrollHeight;
+                        }
+
+                        stats.innerText = `${progressData.stats.success + progressData.stats.failed} / ${progressData.stats.total} images processed`;
+                        const pct = Math.min(70 + (progressData.stats.total ? Math.round((progressData.stats.success + progressData.stats.failed) / progressData.stats.total * 30) : 0), 99);
+                        progressBar.style.width = pct + '%';
+                        percentage.innerText = pct + '%';
+                        
+                        if (progressData.status === 'done') {
+                            clearInterval(pollProgress);
+                            downloadBtn.href = '/api/download/' + jobId;
+                            downloadCard.classList.remove('hidden');
+                            stats.innerText = 'Process completed successfully.';
+                            progressBar.style.width = '100%';
+                            percentage.innerText = '100%';
+                            startBtn.disabled = false;
+                        } else if (progressData.status === 'fatal') {
+                            clearInterval(pollProgress);
+                            stats.innerText = 'Process terminated with errors.';
+                            startBtn.disabled = false;
+                        }
+                    } catch (err) {
+                        console.error('Poll error:', err);
                     }
-                };
+                }, 1000);
+
+                // Fallback timeout after 30 min
+                setTimeout(() => {
+                    clearInterval(pollProgress);
+                    startBtn.disabled = false;
+                }, 30 * 60 * 1000);
+
             } catch (err) {
                 const div = document.createElement('div');
                 div.className = 'text-red-500 font-bold mt-2';

@@ -67,67 +67,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Chunk upload endpoint (memory-based)
-app.post('/api/upload-chunk', upload.single('chunk'), (req, res) => {
-  const { uploadId, chunkIndex, totalChunks } = req.body;
+// Generate Cloudinary upload signature (for unsigned uploads, not needed)
+app.post('/api/upload-signature', (req, res) => {
+  const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+  const api_secret = process.env.CLOUDINARY_API_SECRET;
   
-  if (!uploadId || !req.file) {
-    return res.status(400).json({ error: 'Missing uploadId or chunk file' });
+  if (!cloud_name || !api_secret) {
+    return res.status(400).json({ error: 'Cloudinary credentials missing' });
   }
 
-  try {
-    // Store chunk in memory (will be assembled in process-chunked)
-    if (!jobs.has(uploadId)) {
-      jobs.set(uploadId, { chunks: new Map() });
-    }
-    
-    const uploadData = jobs.get(uploadId);
-    uploadData.chunks.set(parseInt(chunkIndex), req.file.buffer);
-    
-    res.json({ success: true, chunkIndex });
-  } catch (err) {
-    console.error(`[CHUNK UPLOAD ERROR]`, err);
-    res.status(500).json({ error: `Failed to save chunk: ${err.message}` });
-  }
-});
-
-// Process chunked upload
-app.post('/api/process-chunked', async (req, res) => {
-  const { uploadId, totalChunks, fileName, effect } = req.body;
-  
-  if (!uploadId || !totalChunks) {
-    return res.status(400).json({ error: 'Missing uploadId or totalChunks' });
-  }
-
-  try {
-    const uploadData = jobs.get(uploadId);
-    if (!uploadData) {
-      return res.status(400).json({ error: 'Upload session not found' });
-    }
-
-    // Merge chunks in memory
-    const chunks = [];
-    for (let i = 0; i < totalChunks; i++) {
-      const chunk = uploadData.chunks.get(i);
-      if (!chunk) {
-        return res.status(400).json({ error: `Chunk ${i} missing` });
-      }
-      chunks.push(chunk);
-    }
-
-    const mergedBuffer = Buffer.concat(chunks);
-    
-    // Start processing
-    const jobId = await startProcessing(mergedBuffer, fileName, effect);
-    
-    // Cleanup chunks
-    uploadData.chunks.clear();
-    
-    res.json({ jobId });
-  } catch (err) {
-    console.error('[Chunk Merge Error]', err);
-    res.status(500).json({ error: 'Failed to process chunked upload: ' + err.message });
-  }
+  // For unsigned uploads, no signature needed
+  res.json({ 
+    cloud_name,
+    uploadPreset: 'ml_default' // Default unsigned upload
+  });
 });
 
 // Main processing function (Vercel serverless compatible)
@@ -359,6 +312,38 @@ app.post('/api/process', upload.single('csv'), async (req, res) => {
   }
 });
 
+// Process CSV from Cloudinary URL (Vercel serverless compatible - NO file uploads)
+app.post('/api/process-url', express.json(), async (req, res) => {
+  const { csvUrl, fileName, effect } = req.body;
+  
+  if (!csvUrl) {
+    return res.status(400).json({ error: 'Missing csvUrl' });
+  }
+
+  const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+  const api_key = process.env.CLOUDINARY_API_KEY;
+  const api_secret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!cloud_name || !api_key || !api_secret) {
+    return res.status(400).json({ error: 'Cloudinary credentials missing' });
+  }
+
+  try {
+    // Download CSV from URL
+    const response = await axios.get(csvUrl, { 
+      responseType: 'arraybuffer',
+      timeout: 30000 
+    });
+    
+    const fileBuffer = Buffer.from(response.data);
+    const jobId = await startProcessing(fileBuffer, fileName || 'dataset.csv', effect);
+    res.json({ jobId });
+  } catch (err) {
+    console.error('[CSV Download Error]', err);
+    res.status(500).json({ error: 'Failed to download CSV from Cloudinary: ' + err.message });
+  }
+});
+
 // Progress endpoint (polling-based, Vercel compatible)
 app.get('/api/progress/:jobId', (req, res) => {
   const { jobId } = req.params;
@@ -403,10 +388,10 @@ app.get('/api', (req, res) => {
     ok: true, 
     message: 'Image Migrator API ready',
     endpoints: [
-      'POST /api/process - Upload and process CSV',
-      'POST /api/upload-chunk - Upload file in chunks',
-      'POST /api/process-chunked - Process chunked upload',
-      'GET /api/progress/:jobId - Check job status',
+      'POST /api/process - Upload and process CSV (small files)',
+      'POST /api/process-url - Process CSV from Cloudinary URL (recommended)',
+      'POST /api/upload-signature - Get Cloudinary upload credentials',
+      'GET /api/progress/:jobId - Check job status (polling)',
       'GET /api/download/:jobId - Download result CSV',
       'GET /api/health - Health check'
     ]
