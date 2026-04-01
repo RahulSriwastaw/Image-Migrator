@@ -348,25 +348,28 @@
             
             progressTitle.innerText = 'Uploading to Cloudinary';
             logs.innerHTML = '<div class="text-brand-500 font-bold mb-4 flex items-center gap-2"><i data-lucide="terminal" class="w-3 h-3"></i> INITIALIZING MIGRATION ENGINE...</div>';
-            stats.innerText = 'Uploading CSV to Cloudinary...';
+            stats.innerText = 'Getting upload credentials...';
             progressBar.style.width = '0%';
             percentage.innerText = '0%';
             downloadCard.classList.add('hidden');
             lucide.createIcons();
 
             try {
-                // Step 0: Get Cloudinary config from backend
-                const configRes = await fetch('/api/upload-signature');
-                const config = await configRes.json();
-                if (!configRes.ok) throw new Error(config.error || 'Failed to get upload config');
+                // Step 0: Get Cloudinary signature and credentials from backend
+                const signatureRes = await fetch('/api/upload-signature');
+                if (!signatureRes.ok) throw new Error('Failed to get upload signature');
+                const { signature, timestamp, api_key, cloud_name } = await signatureRes.json();
                 
-                const { cloud_name, uploadPreset } = config;
                 const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`;
 
-                // Step 1: Upload directly to Cloudinary
+                // Step 1: Upload directly to Cloudinary with signed credentials
+                stats.innerText = 'Uploading CSV to Cloudinary...';
+                
                 const cloudinaryFormData = new FormData();
                 cloudinaryFormData.append('file', file);
-                cloudinaryFormData.append('upload_preset', uploadPreset);
+                cloudinaryFormData.append('api_key', api_key);
+                cloudinaryFormData.append('timestamp', timestamp);
+                cloudinaryFormData.append('signature', signature);
 
                 let csvUrl;
                 

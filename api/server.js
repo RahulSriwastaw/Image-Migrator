@@ -69,7 +69,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Generate Cloudinary upload signature (for signed uploads)
-app.post('/api/upload-signature', (req, res) => {
+app.get('/api/upload-signature', (req, res) => {
   const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
   const api_key = process.env.CLOUDINARY_API_KEY;
   const api_secret = process.env.CLOUDINARY_API_SECRET;
@@ -419,7 +419,7 @@ app.get('/api', (req, res) => {
     endpoints: [
       'POST /api/process - Upload and process CSV (small files)',
       'POST /api/process-url - Process CSV from Cloudinary URL (recommended)',
-      'POST /api/upload-signature - Generate signed upload signature',
+      'GET /api/upload-signature - Generate signed upload signature',
       'GET /api/upload-config - Get upload configuration',
       'GET /api/progress/:jobId - Check job status (polling)',
       'GET /api/download/:jobId - Download result CSV',
