@@ -1,22 +1,28 @@
-    <title>Enterprise Image Migrator</title>
+    <title>Migrator Pro | Enterprise Image Migration</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
                     colors: {
                         brand: {
-                            50: '#fff8eb',
-                            100: '#ffeed5',
-                            200: '#ffdf5a',
-                            300: '#ffb85a',
-                            400: '#ff915a',
-                            500: '#ff5a5a',
-                            600: '#e64a4a',
-                            700: '#cc3d3d',
-                            800: '#b33030',
-                            900: '#992626',
-                            950: '#4d0f0f',
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
                         }
                     }
                 }
@@ -25,200 +31,227 @@
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style type="text/tailwindcss">
-        body {
-            @apply bg-[#09090b] text-[#fafafa] font-sans overflow-x-hidden;
+        @layer base {
+            body {
+                @apply bg-[#0c0c0e] text-zinc-300 font-sans antialiased selection:bg-brand-500/30;
+            }
         }
 
-        .hero-gradient {
-            background: radial-gradient(circle at 50% -20%, #992626 0%, transparent 60%);
+        .glass-card {
+            @apply bg-zinc-900/50 border border-zinc-800/50 rounded-2xl backdrop-blur-sm;
         }
 
-        .glass-panel {
-            @apply bg-zinc-900 border border-zinc-800 rounded-xl shadow-lg;
+        .upload-zone {
+            @apply relative border-2 border-dashed border-zinc-800 rounded-2xl p-8 transition-all duration-300 cursor-pointer;
+        }
+        .upload-zone:hover {
+            @apply border-brand-500/50 bg-brand-500/5;
+        }
+        .upload-zone.active {
+            @apply border-brand-500 bg-brand-500/10;
         }
 
-        .step-indicator {
-            @apply w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-200;
+        .effect-card {
+            @apply p-4 rounded-xl border border-zinc-800 bg-zinc-900/50 transition-all duration-200 cursor-pointer flex flex-col items-center gap-3 text-center;
         }
-        .step-active .step-indicator {
-            @apply bg-brand-500 text-zinc-950 shadow-[0_0_10px_rgba(255,90,90,0.4)];
+        .effect-card:hover {
+            @apply border-zinc-700 bg-zinc-800/50 -translate-y-0.5;
         }
-
-        .terminal-window {
-            @apply bg-zinc-950 border border-zinc-800 rounded-xl shadow-inner;
-        }
-
-        .btn-action {
-            @apply bg-brand-600 hover:bg-brand-500 text-zinc-50 transition-all duration-200;
-        }
-        .btn-action:hover:not(:disabled) {
-            @apply -translate-y-px shadow-lg shadow-brand-500/20;
-        }
-        .btn-action:active:not(:disabled) {
-            @apply translate-y-0 shadow-none;
+        .effect-card.active {
+            @apply border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/50;
         }
 
-        .custom-loader {
-            @apply w-6 h-6 border-[2px] border-zinc-800 rounded-full inline-block relative animate-spin;
-        }
-        .custom-loader::after {
-            content: '';  
-            @apply absolute left-0 top-0 bg-brand-500 w-1.5 h-1.5 rounded-full;
+        .terminal {
+            @apply bg-[#050505] border border-zinc-800 rounded-xl overflow-hidden font-mono text-[11px] shadow-2xl;
         }
 
-        .pulse-dot {
-            @apply w-2 h-2 rounded-full bg-brand-500 animate-pulse shadow-[0_0_0_rgba(255,90,90,0.4)];
+        .btn-primary {
+            @apply bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-600/20 active:scale-[0.98];
         }
 
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+            @apply bg-transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            @apply bg-zinc-700 rounded-full;
+            @apply bg-zinc-800 rounded-full hover:bg-zinc-700;
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
+        }
+        .pulse-soft {
+            animation: pulse-soft 2s infinite ease-in-out;
         }
     </style>
 </head>
-<body class="min-h-screen hero-gradient">
-    <div class="max-w-5xl mx-auto px-4 py-4">
-        <!-- Header Section -->
-        <nav class="flex justify-between items-center mb-6 border-b border-zinc-800 pb-3">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center shadow-md shadow-brand-900/30">
-                    <i data-lucide="zap" class="text-zinc-50 w-5 h-5"></i>
-                </div>
-                <span class="text-xl font-bold tracking-tight">Image <span class="text-brand-500 font-medium">Migrator</span></span>
-            </div>
-            <div id="healthStatus" class="transition-all duration-300"></div>
-        </nav>
+<body class="min-h-screen">
+    <!-- Background Elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-brand-500/10 blur-[120px] rounded-full"></div>
+        <div class="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-500/5 blur-[100px] rounded-full"></div>
+    </div>
 
-        <div class="grid lg:grid-cols-12 gap-6 items-start mb-8">
-            <div class="lg:col-span-5">
-                <h1 class="text-4xl font-bold leading-tight mb-3 tracking-tight">
-                    Bulk Image <br/>
-                    <span class="text-brand-400">Migration Tool</span>
+    <div class="relative max-w-6xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
+                        <i data-lucide="layers" class="text-white w-5 h-5"></i>
+                    </div>
+                    <span class="text-sm font-bold tracking-[0.2em] uppercase text-zinc-500">Migrator Pro</span>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                    Dataset Image <span class="text-brand-500">Migration</span>
                 </h1>
-                <p class="text-sm text-zinc-100 mb-5 max-w-sm leading-relaxed">
-                    Upload your CSV dataset to automatically process and migrate images to Cloudinary.
-                </p>
-                <div class="flex gap-4">
-                    <div class="flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-md border border-zinc-800">
-                        <i data-lucide="shield-check" class="w-4 h-4 text-brand-500"></i>
-                        <span class="text-xs font-semibold text-white uppercase tracking-wide">Secure</span>
+            </div>
+            <div id="healthStatus" class="flex items-center"></div>
+        </header>
+
+        <main class="grid lg:grid-cols-12 gap-12">
+            <!-- Left Column: Configuration -->
+            <div class="lg:col-span-5 space-y-10">
+                <section>
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-800 text-[10px] font-bold text-zinc-400">01</span>
+                        <h2 class="text-sm font-semibold uppercase tracking-wider text-zinc-400">Select Source</h2>
                     </div>
-                    <div class="flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-md border border-zinc-800">
-                        <i data-lucide="gauge" class="w-4 h-4 text-brand-500"></i>
-                        <span class="text-xs font-semibold text-white uppercase tracking-wide">Fast</span>
+                    
+                    <div class="upload-zone group" id="dropZone">
+                        <input type="file" id="csvFile" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <div class="flex flex-col items-center text-center">
+                            <div class="w-16 h-16 rounded-2xl bg-zinc-800/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <i data-lucide="file-up" class="w-8 h-8 text-zinc-400 group-hover:text-brand-500 transition-colors"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-white mb-1" id="fileNameDisplay">Drop CSV file here</h3>
+                            <p class="text-sm text-zinc-500">or click to browse your computer</p>
+                            <div class="mt-4 flex items-center gap-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600">
+                                <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-3 h-3"></i> CSV Only</span>
+                                <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-3 h-3"></i> Max 250MB</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                    <div id="fileError" class="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 hidden">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                            <span>File size exceeds 250MB limit.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-800 text-[10px] font-bold text-zinc-400">02</span>
+                        <h2 class="text-sm font-semibold uppercase tracking-wider text-zinc-400">Apply Effects</h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div onclick="selectEffect('')" class="effect-card active" data-val="">
+                            <i data-lucide="image" class="w-5 h-5 text-zinc-400"></i>
+                            <span class="text-[11px] font-medium uppercase tracking-wider">Original</span>
+                        </div>
+                        <div onclick="selectEffect('grayscale')" class="effect-card" data-val="grayscale">
+                            <i data-lucide="monitor" class="w-5 h-5 text-zinc-400"></i>
+                            <span class="text-[11px] font-medium uppercase tracking-wider">B&W</span>
+                        </div>
+                        <div onclick="selectEffect('sepia')" class="effect-card" data-val="sepia">
+                            <i data-lucide="camera" class="w-5 h-5 text-zinc-400"></i>
+                            <span class="text-[11px] font-medium uppercase tracking-wider">Sepia</span>
+                        </div>
+                        <div onclick="selectEffect('negate')" class="effect-card" data-val="negate">
+                            <i data-lucide="contrast" class="w-5 h-5 text-zinc-400"></i>
+                            <span class="text-[11px] font-medium uppercase tracking-wider">Invert</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="imageEffect" value="">
+                </section>
+
+                <button id="startBtn" disabled class="w-full btn-primary flex items-center justify-center gap-3 group">
+                    <span>Start Migration Process</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+                </button>
             </div>
 
-            <div class="lg:col-span-7 glass-panel p-6 shadow-xl">
-                <div class="space-y-6">
-                    <!-- Step 1 -->
-                    <div class="flex gap-4">
-                        <div class="step-active mt-0.5"><div class="step-indicator">1</div></div>
-                        <div class="flex-1">
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-white mb-2">Source Dataset</h3>
-                            <div class="relative group">
-                                <div class="relative bg-zinc-950 border border-zinc-700 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-brand-500 hover:bg-zinc-900 transition-all">
-                                    <input type="file" id="csvFile" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                                    <div class="flex flex-col items-center gap-1">
-                                        <i data-lucide="file-spreadsheet" class="w-6 h-6 text-zinc-200 group-hover:text-brand-500 transition-colors mb-1"></i>
-                                        <span id="fileNameDisplay" class="text-sm font-medium text-white">Select CSV File</span>
-                                        <span class="text-[10px] text-zinc-200 mt-1">Max 250MB</span>
-                                    </div>
+            <!-- Right Column: Monitoring -->
+            <div class="lg:col-span-7">
+                <div id="idleState" class="h-full flex flex-col items-center justify-center text-center p-12 glass-card border-dashed">
+                    <div class="w-20 h-20 rounded-full bg-zinc-800/30 flex items-center justify-center mb-6">
+                        <i data-lucide="activity" class="w-10 h-10 text-zinc-700"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-zinc-400 mb-2">System Idle</h3>
+                    <p class="text-sm text-zinc-600 max-w-xs">Configure your migration settings on the left to begin the process.</p>
+                </div>
+
+                <div id="progressArea" class="hidden space-y-6">
+                    <div class="glass-card p-8">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h3 id="progressTitle" class="text-xs font-bold uppercase tracking-[0.2em] text-brand-500 mb-1">Initializing</h3>
+                                <div id="stats" class="text-sm text-zinc-400">Waiting for server response...</div>
+                            </div>
+                            <div id="percentage" class="text-5xl font-bold text-white tracking-tighter">0%</div>
+                        </div>
+
+                        <div class="relative h-2 bg-zinc-800 rounded-full overflow-hidden mb-8">
+                            <div id="progressBar" class="absolute top-0 left-0 h-full bg-brand-500 transition-all duration-500 ease-out" style="width: 0%"></div>
+                        </div>
+
+                        <div id="downloadCard" class="hidden p-4 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white">
+                                    <i data-lucide="check" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-white">Migration Complete</h4>
+                                    <p class="text-xs text-brand-400">Your processed CSV is ready.</p>
                                 </div>
                             </div>
-                            <div id="fileError" class="text-red-400 text-xs font-medium mt-2 hidden">File size limit exceeded (Max 250MB)</div>
+                            <a id="downloadBtn" class="bg-white text-zinc-950 px-5 py-2 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Download
+                            </a>
                         </div>
                     </div>
 
-                    <!-- Step 2 -->
-                    <div class="flex gap-4">
-                        <div class="step-active mt-0.5"><div class="step-indicator">2</div></div>
-                        <div class="flex-1">
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-white mb-2">Image Transformation</h3>
-                            <div class="grid grid-cols-4 gap-2">
-                                <button onclick="selectEffect('')" class="effect-btn active p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="">
-                                    <i data-lucide="image" class="w-4 h-4"></i> Original
-                                </button>
-                                <button onclick="selectEffect('grayscale')" class="effect-btn p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="grayscale">
-                                    <i data-lucide="monitor" class="w-4 h-4"></i> B&W
-                                </button>
-                                <button onclick="selectEffect('sepia')" class="effect-btn p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="sepia">
-                                    <i data-lucide="camera" class="w-4 h-4"></i> Sepia
-                                </button>
-                                <button onclick="selectEffect('negate')" class="effect-btn p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="negate">
-                                    <i data-lucide="contrast" class="w-4 h-4"></i> Negative
-                                </button>
+                    <div class="terminal">
+                        <div class="bg-zinc-900 px-4 py-2 flex items-center justify-between border-b border-zinc-800">
+                            <div class="flex items-center gap-2">
+                                <div class="flex gap-1.5">
+                                    <div class="w-2 h-2 rounded-full bg-red-500/50"></div>
+                                    <div class="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                                    <div class="w-2 h-2 rounded-full bg-green-500/50"></div>
+                                </div>
+                                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Console</span>
                             </div>
-                            <input type="hidden" id="imageEffect" value="">
-                        </div>
-                    </div>
-
-                    <button id="startBtn" disabled class="w-full btn-action py-3 rounded-lg font-bold text-xs uppercase tracking-wide shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2">
-                        Start Migration
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Progress Section -->
-        <div id="progressArea" class="hidden opacity-0 translate-y-4 transition-all duration-500">
-            <div class="grid lg:grid-cols-12 gap-6">
-                <div class="lg:col-span-4 space-y-4">
-                    <div class="glass-panel p-6">
-                        <div class="flex items-center gap-2 mb-4">
-                            <div class="pulse-dot"></div>
-                            <span id="progressTitle" class="text-[10px] font-bold uppercase tracking-wide text-brand-400">Uploading</span>
-                        </div>
-                        
-                        <div class="space-y-4">
-                            <div>
-                                <div class="text-[10px] font-semibold text-zinc-200 uppercase tracking-wide mb-1">Progress</div>
-                                <div id="percentage" class="text-4xl font-bold text-brand-500 leading-none">0%</div>
-                            </div>
-                            <div>
-                                <div class="text-[10px] font-semibold text-zinc-200 uppercase tracking-wide mb-1">Status</div>
-                                <div id="stats" class="text-xs font-medium text-white">Initializing...</div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-brand-500 pulse-soft"></div>
+                                <span class="text-[9px] text-zinc-500 uppercase font-bold tracking-widest">Live</span>
                             </div>
                         </div>
-                    </div>
-
-                    <div id="downloadCard" class="hidden glass-panel p-6 border-brand-500/30 bg-brand-500/5">
-                        <h3 class="text-[10px] font-bold uppercase tracking-wide text-brand-400 mb-3">Complete</h3>
-                        <a id="downloadBtn" class="w-full btn-action py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2">
-                            <i data-lucide="download" class="w-4 h-4"></i>
-                            Download Result
-                        </a>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-8">
-                    <div class="terminal-window h-full flex flex-col min-h-[250px]">
-                        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 rounded-t-xl">
-                            <div class="flex gap-1.5">
-                                <div class="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
-                                <div class="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
-                                <div class="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
-                            </div>
-                            <span class="text-[10px] font-semibold text-zinc-200 uppercase tracking-wide">Console Output</span>
-                        </div>
-                        <div id="logs" class="flex-1 p-4 overflow-y-auto font-mono text-[10px] leading-relaxed custom-scrollbar max-h-[300px]">
-                            <div class="text-zinc-300">Waiting to start...</div>
-                        </div>
-                        <div class="p-1 bg-zinc-900 rounded-b-xl border-t border-zinc-800">
-                            <div class="w-full bg-zinc-950 h-1 rounded-b-xl overflow-hidden">
-                                <div id="progressBar" class="h-full bg-brand-500 transition-all duration-300" style="width: 0%"></div>
-                            </div>
+                        <div id="logs" class="p-6 h-[300px] overflow-y-auto custom-scrollbar space-y-1.5">
+                            <div class="text-zinc-600 italic">Waiting for process to start...</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-24 pt-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4 text-zinc-600 text-[11px] font-medium uppercase tracking-widest">
+            <div class="flex items-center gap-6">
+                <span>&copy; 2026 Migrator Pro</span>
+                <a href="#" class="hover:text-zinc-400 transition-colors">Documentation</a>
+                <a href="#" class="hover:text-zinc-400 transition-colors">API Reference</a>
+            </div>
+            <div class="flex items-center gap-2">
+                <span>Powered by</span>
+                <span class="text-zinc-400">Cloudinary & Express</span>
+            </div>
+        </footer>
     </div>
 
     <script>
@@ -235,16 +268,18 @@
         const downloadCard = document.getElementById('downloadCard');
         const healthStatus = document.getElementById('healthStatus');
         const progressArea = document.getElementById('progressArea');
+        const idleState = document.getElementById('idleState');
         const progressTitle = document.getElementById('progressTitle');
         const fileError = document.getElementById('fileError');
         const imageEffectInput = document.getElementById('imageEffect');
+        const dropZone = document.getElementById('dropZone');
 
         function selectEffect(val) {
             imageEffectInput.value = val;
-            document.querySelectorAll('.effect-btn').forEach(btn => {
-                btn.classList.remove('border-brand-500', 'bg-brand-500/10', 'text-brand-400');
+            document.querySelectorAll('.effect-card').forEach(btn => {
+                btn.classList.remove('active');
                 if (btn.dataset.val === val) {
-                    btn.classList.add('border-brand-500', 'bg-brand-500/10', 'text-brand-400');
+                    btn.classList.add('active');
                 }
             });
         }
@@ -252,18 +287,37 @@
         async function checkHealth() {
             try {
                 const res = await fetch('/api/health');
-                const text = await res.text();
-                let data = {};
-                try { data = JSON.parse(text); } catch(e) {}
+                const data = await res.json();
                 
                 if (!data.envCreds) {
-                    healthStatus.innerHTML = `<span class="px-3 py-1.5 rounded-md bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-400 flex items-center gap-2"><i data-lucide="shield-alert" class="w-4 h-4"></i> Config Error</span>`;
+                    healthStatus.innerHTML = `
+                        <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
+                            <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-red-500 uppercase tracking-wider">Config Error</span>
+                                <span class="text-[9px] text-red-400/70">Check Cloudinary Credentials</span>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    healthStatus.innerHTML = `<span class="px-3 py-1.5 rounded-md bg-brand-500/10 border border-brand-500/20 text-xs font-semibold text-brand-400 flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4"></i> System Ready</span>`;
+                    healthStatus.innerHTML = `
+                        <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 pulse-soft"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">System Ready</span>
+                                <span class="text-[9px] text-emerald-400/70">Cloudinary Connected</span>
+                            </div>
+                        </div>
+                    `;
                 }
                 lucide.createIcons();
             } catch (err) {
-                healthStatus.innerHTML = `<span class="px-3 py-1.5 rounded-md bg-zinc-500/10 border border-zinc-500/20 text-xs font-semibold text-zinc-200 flex items-center gap-2"><i data-lucide="wifi-off" class="w-4 h-4"></i> Offline</span>`;
+                healthStatus.innerHTML = `
+                    <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-zinc-500/10 border border-zinc-500/20">
+                        <div class="w-2 h-2 rounded-full bg-zinc-500"></div>
+                        <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Service Offline</span>
+                    </div>
+                `;
                 lucide.createIcons();
             }
         }
@@ -273,6 +327,7 @@
             const file = csvFile.files[0];
             if (file) {
                 fileNameDisplay.innerText = file.name;
+                dropZone.classList.add('active');
                 if (file.size > 250 * 1024 * 1024) {
                     fileError.classList.remove('hidden');
                     startBtn.disabled = true;
@@ -288,15 +343,16 @@
             if (!file) return;
 
             startBtn.disabled = true;
+            idleState.classList.add('hidden');
             progressArea.classList.remove('hidden');
-            setTimeout(() => progressArea.classList.remove('opacity-0', 'translate-y-4'), 10);
             
             progressTitle.innerText = 'Uploading';
-            logs.innerHTML = '<div class="text-brand-400 mb-2 font-semibold text-xs">> Initializing migration...</div>';
-            stats.innerText = 'Preparing upload...';
+            logs.innerHTML = '<div class="text-brand-500 font-bold mb-4 flex items-center gap-2"><i data-lucide="terminal" class="w-3 h-3"></i> INITIALIZING MIGRATION ENGINE...</div>';
+            stats.innerText = 'Preparing secure upload tunnel...';
             progressBar.style.width = '0%';
             percentage.innerText = '0%';
             downloadCard.classList.add('hidden');
+            lucide.createIcons();
 
             const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
             const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
@@ -306,12 +362,11 @@
                 let jobId;
 
                 if (file.size <= CHUNK_SIZE) {
-                    // Small file: standard upload
                     const formData = new FormData();
                     formData.append('csv', file);
                     formData.append('effect', imageEffectInput.value);
 
-                    stats.innerText = 'Uploading file...';
+                    stats.innerText = 'Uploading dataset...';
                     const res = await new Promise((resolve, reject) => {
                         const xhr = new XMLHttpRequest();
                         xhr.open('POST', '/api/process');
@@ -344,14 +399,11 @@
                     const text = await res.text();
                     let data;
                     try { data = JSON.parse(text); } catch(e) {
-                        throw new Error(res.status === 413 ? 'File is too large for the network infrastructure (413 Payload Too Large).' : `Server error: ${res.status} ${res.statusText}. Response: ${text.substring(0, 100)}`);
+                        throw new Error(res.status === 413 ? 'Payload too large (413).' : `Server error: ${res.status}`);
                     }
-                    if (!res.ok) {
-                        throw new Error(data.error || 'Initialization failed');
-                    }
+                    if (!res.ok) throw new Error(data.error || 'Initialization failed');
                     jobId = data.jobId;
                 } else {
-                    // Large file: chunked upload
                     for (let i = 0; i < totalChunks; i++) {
                         const start = i * CHUNK_SIZE;
                         const end = Math.min(start + CHUNK_SIZE, file.size);
@@ -396,18 +448,7 @@
                             xhr.send(formData);
                         });
 
-                        if (!res.ok) {
-                            const text = await res.text();
-                            let errorMsg = `Chunk ${i} upload failed`;
-                            try {
-                                const errorData = JSON.parse(text);
-                                errorMsg = errorData.error || errorMsg;
-                            } catch(e) {
-                                if (res.status === 413) errorMsg = 'Chunk is too large for the network infrastructure (413 Payload Too Large).';
-                                else errorMsg = `Server error: ${res.status} ${res.statusText}`;
-                            }
-                            throw new Error(errorMsg);
-                        }
+                        if (!res.ok) throw new Error('Chunk upload failed');
                     }
 
                     stats.innerText = 'Finalizing upload...';
@@ -421,14 +462,8 @@
                             effect: imageEffectInput.value
                         })
                     });
-                    const text = await res.text();
-                    let data;
-                    try { data = JSON.parse(text); } catch(e) {
-                        throw new Error(res.status === 413 ? 'Payload too large (413).' : `Server error: ${res.status} ${res.statusText}`);
-                    }
-                    if (!res.ok) {
-                        throw new Error(data.error || 'Finalization failed');
-                    }
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Finalization failed');
                     jobId = data.jobId;
                 }
                 
@@ -440,21 +475,37 @@
                     if (data.logs && data.logs.length > 0) {
                         data.logs.forEach(log => {
                             const div = document.createElement('div');
-                            div.className = 'mb-1.5 border-l-2 border-zinc-700 pl-3 py-0.5';
+                            div.className = 'flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300';
                             
+                            let icon = 'info';
+                            let iconColor = 'text-brand-500';
+                            let textColor = 'text-zinc-300';
+
                             if (log.startsWith('Failed')) {
-                                div.innerHTML = `<span class="text-yellow-500 font-semibold">[WARN]</span> <span class="text-zinc-100">${log.replace('Failed to process ', '')}</span>`;
+                                icon = 'alert-triangle';
+                                iconColor = 'text-yellow-500';
+                                textColor = 'text-yellow-500/80';
                             } else if (log.startsWith('Fatal')) {
-                                div.innerHTML = `<span class="text-red-400 font-semibold">[FAIL]</span> <span class="text-zinc-100">${log.replace('Fatal Error: ', '')}</span>`;
-                            } else {
-                                div.innerHTML = `<span class="text-brand-500 font-semibold">[INFO]</span> <span class="text-zinc-100">${log}</span>`;
+                                icon = 'x-circle';
+                                iconColor = 'text-red-500';
+                                textColor = 'text-red-400';
+                            } else if (log.includes('completed')) {
+                                icon = 'check-circle';
+                                iconColor = 'text-emerald-500';
+                                textColor = 'text-emerald-400';
                             }
+                            
+                            div.innerHTML = `
+                                <span class="${iconColor} opacity-50 mt-0.5"><i data-lucide="${icon}" class="w-3 h-3"></i></span>
+                                <span class="${textColor}">${log}</span>
+                            `;
                             logs.appendChild(div);
+                            lucide.createIcons();
                         });
                         logs.scrollTop = logs.scrollHeight;
                     }
 
-                    stats.innerText = `${data.stats.success + data.stats.failed} / ${data.stats.total} entries processed`;
+                    stats.innerText = `${data.stats.success + data.stats.failed} / ${data.stats.total} images processed`;
                     const pct = data.stats.total ? Math.round((data.stats.success + data.stats.failed) / data.stats.total * 100) : 0;
                     progressBar.style.width = pct + '%';
                     percentage.innerText = pct + '%';
@@ -463,28 +514,19 @@
                         eventSource.close();
                         downloadBtn.href = '/api/download/' + jobId;
                         downloadCard.classList.remove('hidden');
-                        const div = document.createElement('div');
-                        div.className = 'text-brand-400 font-medium mt-4 p-4 bg-brand-500/10 border border-brand-500/20 rounded-lg flex items-center gap-2';
-                        div.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i> Migration completed successfully';
-                        logs.appendChild(div);
-                        lucide.createIcons();
-                        logs.scrollTop = logs.scrollHeight;
-                        stats.innerText = 'All tasks completed.';
+                        stats.innerText = 'Process completed successfully.';
                         startBtn.disabled = false;
                     } else if (data.status === 'fatal') {
                         eventSource.close();
-                        const div = document.createElement('div');
-                        div.className = 'text-red-400 font-medium mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2';
-                        div.innerHTML = `<i data-lucide="alert-circle" class="w-5 h-5"></i> Error: ${data.error || 'Unknown'}`;
-                        logs.appendChild(div);
-                        lucide.createIcons();
-                        logs.scrollTop = logs.scrollHeight;
-                        stats.innerText = 'Process terminated.';
+                        stats.innerText = 'Process terminated with errors.';
                         startBtn.disabled = false;
                     }
                 };
             } catch (err) {
-                logs.innerHTML += `<div class="text-red-400 mt-2 text-xs">!! ERROR: ${err.message}</div>`;
+                const div = document.createElement('div');
+                div.className = 'text-red-500 font-bold mt-2';
+                div.innerText = `!! ERROR: ${err.message}`;
+                logs.appendChild(div);
                 startBtn.disabled = false;
             }
         });
