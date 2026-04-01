@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import multer from 'multer';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
@@ -13,9 +14,12 @@ dotenv.config();
 
 const app = express();
 
-// Global request logger to debug 413 errors
+// Enable gzip compression for all responses
+app.use(compression({ level: 6, threshold: 1024 }));
+
+// Only log errors, not every request
 app.use((req, res, next) => {
-  if (req.method === 'POST') {
+  if (req.method === 'POST' && process.env.DEBUG === 'true') {
     console.log(`[REQUEST] ${req.method} ${req.url} - Content-Length: ${req.headers['content-length']} bytes`);
   }
   next();
@@ -33,14 +37,27 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 250 * 1024 * 1024 } // Keep 250MB on server just in case
+  limits: { fileSize: 250 * 1024 * 1024 },
+  highWaterMark: 16 * 1024 * 1024 // 16MB buffer for faster uploads
 });
 const PORT = process.env.PORT || 3000;
 
 // Only apply body parsers where needed or with high limits
 app.use(express.json({ limit: '250MB' }));
 app.use(express.urlencoded({ limit: '250MB', extended: true }));
-app.use(express.static('public'));
+
+// Serve static files with aggressive caching
+app.use(express.static('public', {
+  maxAge: '1d',
+  etag: false,
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for HTML
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day for assets
+    }
+  }
+}));
 
 const jobs = new Map();
 const chunkedUploads = new Map();
@@ -79,16 +96,25 @@ app.post('/api/upload-chunk', upload.single('chunk'), (req, res) => {
   const { uploadId, chunkIndex, totalChunks, fileName } = req.body;
   
   if (!uploadId || !req.file) {
-    return res.status(400).json({ error: 'Missing uploadId or chunk file' });
+    const error = 'Missing uploadId or chunk file';
+    if (process.env.DEBUG === 'true') console.error(`[CHUNK UPLOAD ERROR] ${error}`);
+    return res.status(400).json({ error });
   }
 
-  const uploadDir = path.join('./uploads', uploadId);
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  try {
+    const uploadDir = path.join('./uploads', uploadId);
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
 
-  const chunkPath = path.join(uploadDir, `chunk-${chunkIndex}`);
-  fs.renameSync(req.file.path, chunkPath);
+    const chunkPath = path.join(uploadDir, `chunk-${chunkIndex}`);
+    fs.renameSync(req.file.path, chunkPath);
 
-  res.json({ success: true, chunkIndex });
+    res.json({ success: true, chunkIndex });
+  } catch (err) {
+    console.error(`[CHUNK UPLOAD ERROR]`, err);
+    res.status(500).json({ error: `Failed to save chunk: ${err.message}` });
+  }
 });
 
 // Process Chunked Upload
@@ -147,6 +173,7 @@ async function startProcessing(filePath, originalName, effect) {
     status: 'processing',
     stats: { total: 0, success: 0, failed: 0 },
     logs: [],
+    originalName: originalName,
     resultPath: path.join('./uploads', `result-${jobId}.csv`)
   };
   jobs.set(jobId, job);
@@ -165,7 +192,7 @@ async function startProcessing(filePath, originalName, effect) {
         'solution_hin', 'solution_eng'
       ];
 
-      // PASS 1: Extract unique URLs
+      // PASS 1: Extract unique URLs with progress updates
       job.logs.push('Pass 1: Analyzing dataset for images...');
       const urlSet = new Set();
       
@@ -176,15 +203,23 @@ async function startProcessing(filePath, originalName, effect) {
         trim: true 
       }));
 
+      let recordCount = 0;
+      const srcRegex = /src=["']([^"']+)["']/gi;
+      
       for await (const record of parser1) {
+        recordCount++;
+        if (recordCount % 100 === 0) {
+          job.logs.push(`Scanned ${recordCount} records...`);
+        }
+        
         htmlFields.forEach(field => {
-          if (record[field]) {
-            const matches = record[field].match(/<img[^>]+src=["']([^"']+)["']/gi);
-            if (matches) {
-              matches.forEach(m => {
-                const src = m.match(/src=["']([^"']+)["']/)[1];
-                urlSet.add(src);
-              });
+          if (record[field] && typeof record[field] === 'string') {
+            let match;
+            while ((match = srcRegex.exec(record[field])) !== null) {
+              const url = match[1];
+              if (url && url.startsWith('http')) {
+                urlSet.add(url);
+              }
             }
           }
         });
@@ -192,18 +227,19 @@ async function startProcessing(filePath, originalName, effect) {
 
       const uniqueUrls = Array.from(urlSet);
       job.stats.total = uniqueUrls.length;
-      job.logs.push(`Found ${uniqueUrls.length} unique images to process.`);
+      job.logs.push(`✓ Found ${uniqueUrls.length} unique images to migrate.`);
 
       const urlMap = {};
       if (uniqueUrls.length > 0) {
-        const CONCURRENCY_LIMIT = 30; // Process 30 images at a time
+        const CONCURRENCY_LIMIT = 50;
         let i = 0;
+        let progressUpdate = 0;
         const workers = Array(CONCURRENCY_LIMIT).fill(null).map(async () => {
           while (i < uniqueUrls.length) {
             const index = i++;
             const url = uniqueUrls[index];
             try {
-              const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 30000 });
+              const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000, maxRedirects: 3 });
               const public_id = `${folderPath}/${getPublicId(url)}_${uuidv4().slice(0, 8)}`;
               
               const uploadOptions = { public_id, overwrite: false, resource_type: 'image', use_filename: true };
@@ -224,6 +260,10 @@ async function startProcessing(filePath, originalName, effect) {
               
               urlMap[url] = result.secure_url;
               job.stats.success++;
+              progressUpdate++;
+              if (progressUpdate % 5 === 0) {
+                job.logs.push(`Uploaded ${job.stats.success} / ${uniqueUrls.length} images...`);
+              }
             } catch (err) {
               const errMsg = cloudinaryErrMsg(err);
               urlMap[url] = url; // Keep original
@@ -236,11 +276,14 @@ async function startProcessing(filePath, originalName, effect) {
                 context = `[Cloudinary Upload Failed]`;
               }
               
-              job.logs.push(`Failed to process ${url}: ${context} - ${errMsg}`);
+              if (index < 3 || (index + 1) === uniqueUrls.length) {
+                job.logs.push(`⚠ Failed: ${url.substring(0, 50)}... - ${context}`);
+              }
             }
           }
         });
         await Promise.all(workers);
+        job.logs.push(`✓ Image migration complete: ${job.stats.success} success, ${job.stats.failed} failed.`);
       }
 
       // PASS 2: Replace URLs and write to result file
@@ -267,7 +310,13 @@ async function startProcessing(filePath, originalName, effect) {
         urlRegex = new RegExp(pattern, 'g');
       }
 
+      let writeCount = 0;
       for await (const record of parser2) {
+        writeCount++;
+        if (writeCount % 100 === 0) {
+          job.logs.push(`Processed ${writeCount} records...`);
+        }
+        
         if (urlRegex) {
           htmlFields.forEach(field => {
             if (record[field] && record[field].includes('http')) {
@@ -374,8 +423,16 @@ app.get('/api/download/:jobId', (req, res) => {
     return res.status(404).send('Result file not found on server');
   }
 
+  // Generate filename with original name + IM suffix
+  let downloadFilename = 'migrated.csv';
+  if (job.originalName) {
+    const ext = path.extname(job.originalName);
+    const nameWithoutExt = path.basename(job.originalName, ext);
+    downloadFilename = `${nameWithoutExt}-IM${ext}`;
+  }
+
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=questions_migrated.csv');
+  res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
   
   const stream = fs.createReadStream(job.resultPath);
   stream.pipe(res);
@@ -404,5 +461,5 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`⚡ Server running at http://localhost:${PORT} (Optimized Mode)`);
 });

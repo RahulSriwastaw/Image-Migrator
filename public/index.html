@@ -448,7 +448,15 @@
                             xhr.send(formData);
                         });
 
-                        if (!res.ok) throw new Error('Chunk upload failed');
+                        if (!res.ok) {
+                            const errorData = await res.text();
+                            let errorMsg = `Chunk ${i + 1} failed with status ${res.status}`;
+                            try {
+                                const json = JSON.parse(errorData);
+                                if (json.error) errorMsg = json.error;
+                            } catch(e) {}
+                            throw new Error(errorMsg);
+                        }
                     }
 
                     stats.innerText = 'Finalizing upload...';
