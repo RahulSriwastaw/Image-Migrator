@@ -34,12 +34,6 @@ const upload = multer({
 app.use(express.json({ limit: '250MB' }));
 app.use(express.urlencoded({ limit: '250MB', extended: true }));
 
-// Serve static files
-app.use(express.static('public', {
-  maxAge: '1d',
-  etag: false
-}));
-
 // In-memory job storage (resets on each deployment)
 const jobs = new Map();
 
@@ -365,7 +359,7 @@ app.post('/api/process', upload.single('csv'), async (req, res) => {
   }
 });
 
-// Progress endpoint (Server-Sent Events)
+// Progress endpoint (polling-based, Vercel compatible)
 app.get('/api/progress/:jobId', (req, res) => {
   const { jobId } = req.params;
   const job = jobs.get(jobId);
@@ -374,31 +368,11 @@ app.get('/api/progress/:jobId', (req, res) => {
     return res.status(404).json({ error: 'Job not found' });
   }
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-
-  let lastLogIndex = 0;
-  
-  const interval = setInterval(() => {
-    const newLogs = job.logs.slice(lastLogIndex);
-    lastLogIndex = job.logs.length;
-
-    res.write(`data: ${JSON.stringify({ 
-      status: job.status, 
-      stats: job.stats, 
-      logs: newLogs,
-      error: job.error 
-    })}\n\n`);
-
-    if (job.status === 'done' || job.status === 'fatal') {
-      clearInterval(interval);
-      res.end();
-    }
-  }, 1000);
-
-  req.on('close', () => {
-    clearInterval(interval);
+  res.json({ 
+    status: job.status, 
+    stats: job.stats, 
+    logs: job.logs,
+    error: job.error 
   });
 });
 
@@ -423,9 +397,30 @@ app.get('/api/download/:jobId', (req, res) => {
   res.send(job.resultBuffer);
 });
 
-// Root route - serve index.html
+// API health check endpoint
+app.get('/api', (req, res) => {
+  res.json({ 
+    ok: true, 
+    message: 'Image Migrator API ready',
+    endpoints: [
+      'POST /api/process - Upload and process CSV',
+      'POST /api/upload-chunk - Upload file in chunks',
+      'POST /api/process-chunked - Process chunked upload',
+      'GET /api/progress/:jobId - Check job status',
+      'GET /api/download/:jobId - Download result CSV',
+      'GET /api/health - Health check'
+    ]
+  });
+});
+
+// Root route - API info
 app.get('/', (req, res) => {
-  res.sendFile('/public/index.html', { root: process.cwd() });
+  res.json({ 
+    ok: true,
+    message: 'Image Migrator API',
+    version: '1.0.0',
+    mode: 'Vercel Serverless Compatible'
+  });
 });
 
 // 404 handler
