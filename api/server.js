@@ -6,6 +6,7 @@ import { stringify } from 'csv-stringify';
 import axios from 'axios';
 import { v2 as cloudinary } from 'cloudinary';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import streamifier from 'streamifier';
 
@@ -67,19 +68,47 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Generate Cloudinary upload signature (for unsigned uploads, not needed)
+// Generate Cloudinary upload signature (for signed uploads)
 app.post('/api/upload-signature', (req, res) => {
   const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+  const api_key = process.env.CLOUDINARY_API_KEY;
   const api_secret = process.env.CLOUDINARY_API_SECRET;
   
-  if (!cloud_name || !api_secret) {
+  if (!cloud_name || !api_key || !api_secret) {
     return res.status(400).json({ error: 'Cloudinary credentials missing' });
   }
 
-  // For unsigned uploads, no signature needed
+  try {
+    // Generate timestamp in seconds (Unix epoch)
+    const timestamp = Math.floor(Date.now() / 1000);
+    
+    // Create signature: SHA1(api_secret + timestamp)
+    const toSign = `timestamp=${timestamp}${api_secret}`;
+    const signature = crypto.createHash('sha1').update(toSign).digest('hex');
+    
+    res.json({ 
+      signature,
+      timestamp,
+      api_key,
+      cloud_name
+    });
+  } catch (err) {
+    console.error('[Signature Generation Error]', err);
+    res.status(500).json({ error: 'Failed to generate signature: ' + err.message });
+  }
+});
+
+// Get upload configuration (unsigned uploads)
+app.get('/api/upload-config', (req, res) => {
+  const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+  
+  if (!cloud_name) {
+    return res.status(400).json({ error: 'Cloudinary credentials missing' });
+  }
+
   res.json({ 
     cloud_name,
-    uploadPreset: 'ml_default' // Default unsigned upload
+    uploadPreset: 'ml_default' // Default unsigned upload preset
   });
 });
 
@@ -390,7 +419,8 @@ app.get('/api', (req, res) => {
     endpoints: [
       'POST /api/process - Upload and process CSV (small files)',
       'POST /api/process-url - Process CSV from Cloudinary URL (recommended)',
-      'POST /api/upload-signature - Get Cloudinary upload credentials',
+      'POST /api/upload-signature - Generate signed upload signature',
+      'GET /api/upload-config - Get upload configuration',
       'GET /api/progress/:jobId - Check job status (polling)',
       'GET /api/download/:jobId - Download result CSV',
       'GET /api/health - Health check'
