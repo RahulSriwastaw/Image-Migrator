@@ -1,0 +1,493 @@
+    <title>Enterprise Image Migrator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff8eb',
+                            100: '#ffeed5',
+                            200: '#ffdf5a',
+                            300: '#ffb85a',
+                            400: '#ff915a',
+                            500: '#ff5a5a',
+                            600: '#e64a4a',
+                            700: '#cc3d3d',
+                            800: '#b33030',
+                            900: '#992626',
+                            950: '#4d0f0f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style type="text/tailwindcss">
+        body {
+            @apply bg-[#09090b] text-[#fafafa] font-sans overflow-x-hidden;
+        }
+
+        .hero-gradient {
+            background: radial-gradient(circle at 50% -20%, #992626 0%, transparent 60%);
+        }
+
+        .glass-panel {
+            @apply bg-zinc-900 border border-zinc-800 rounded-xl shadow-lg;
+        }
+
+        .step-indicator {
+            @apply w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-200;
+        }
+        .step-active .step-indicator {
+            @apply bg-brand-500 text-zinc-950 shadow-[0_0_10px_rgba(255,90,90,0.4)];
+        }
+
+        .terminal-window {
+            @apply bg-zinc-950 border border-zinc-800 rounded-xl shadow-inner;
+        }
+
+        .btn-action {
+            @apply bg-brand-600 hover:bg-brand-500 text-zinc-50 transition-all duration-200;
+        }
+        .btn-action:hover:not(:disabled) {
+            @apply -translate-y-px shadow-lg shadow-brand-500/20;
+        }
+        .btn-action:active:not(:disabled) {
+            @apply translate-y-0 shadow-none;
+        }
+
+        .custom-loader {
+            @apply w-6 h-6 border-[2px] border-zinc-800 rounded-full inline-block relative animate-spin;
+        }
+        .custom-loader::after {
+            content: '';  
+            @apply absolute left-0 top-0 bg-brand-500 w-1.5 h-1.5 rounded-full;
+        }
+
+        .pulse-dot {
+            @apply w-2 h-2 rounded-full bg-brand-500 animate-pulse shadow-[0_0_0_rgba(255,90,90,0.4)];
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            @apply bg-zinc-700 rounded-full;
+        }
+    </style>
+</head>
+<body class="min-h-screen hero-gradient">
+    <div class="max-w-5xl mx-auto px-4 py-4">
+        <!-- Header Section -->
+        <nav class="flex justify-between items-center mb-6 border-b border-zinc-800 pb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center shadow-md shadow-brand-900/30">
+                    <i data-lucide="zap" class="text-zinc-50 w-5 h-5"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight">Image <span class="text-brand-500 font-medium">Migrator</span></span>
+            </div>
+            <div id="healthStatus" class="transition-all duration-300"></div>
+        </nav>
+
+        <div class="grid lg:grid-cols-12 gap-6 items-start mb-8">
+            <div class="lg:col-span-5">
+                <h1 class="text-4xl font-bold leading-tight mb-3 tracking-tight">
+                    Bulk Image <br/>
+                    <span class="text-brand-400">Migration Tool</span>
+                </h1>
+                <p class="text-sm text-zinc-100 mb-5 max-w-sm leading-relaxed">
+                    Upload your CSV dataset to automatically process and migrate images to Cloudinary.
+                </p>
+                <div class="flex gap-4">
+                    <div class="flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-md border border-zinc-800">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-brand-500"></i>
+                        <span class="text-xs font-semibold text-white uppercase tracking-wide">Secure</span>
+                    </div>
+                    <div class="flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-md border border-zinc-800">
+                        <i data-lucide="gauge" class="w-4 h-4 text-brand-500"></i>
+                        <span class="text-xs font-semibold text-white uppercase tracking-wide">Fast</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-7 glass-panel p-6 shadow-xl">
+                <div class="space-y-6">
+                    <!-- Step 1 -->
+                    <div class="flex gap-4">
+                        <div class="step-active mt-0.5"><div class="step-indicator">1</div></div>
+                        <div class="flex-1">
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-white mb-2">Source Dataset</h3>
+                            <div class="relative group">
+                                <div class="relative bg-zinc-950 border border-zinc-700 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-brand-500 hover:bg-zinc-900 transition-all">
+                                    <input type="file" id="csvFile" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <i data-lucide="file-spreadsheet" class="w-6 h-6 text-zinc-200 group-hover:text-brand-500 transition-colors mb-1"></i>
+                                        <span id="fileNameDisplay" class="text-sm font-medium text-white">Select CSV File</span>
+                                        <span class="text-[10px] text-zinc-200 mt-1">Max 250MB</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="fileError" class="text-red-400 text-xs font-medium mt-2 hidden">File size limit exceeded (Max 250MB)</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="flex gap-4">
+                        <div class="step-active mt-0.5"><div class="step-indicator">2</div></div>
+                        <div class="flex-1">
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-white mb-2">Image Transformation</h3>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="selectEffect('')" class="effect-btn active p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="">
+                                    <i data-lucide="image" class="w-4 h-4"></i> Original
+                                </button>
+                                <button onclick="selectEffect('grayscale')" class="effect-btn p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="grayscale">
+                                    <i data-lucide="monitor" class="w-4 h-4"></i> B&W
+                                </button>
+                                <button onclick="selectEffect('sepia')" class="effect-btn p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="sepia">
+                                    <i data-lucide="camera" class="w-4 h-4"></i> Sepia
+                                </button>
+                                <button onclick="selectEffect('negate')" class="effect-btn p-2 rounded-md border border-zinc-700 bg-zinc-900 text-[10px] font-medium hover:border-brand-500 transition-all flex flex-col items-center gap-1" data-val="negate">
+                                    <i data-lucide="contrast" class="w-4 h-4"></i> Negative
+                                </button>
+                            </div>
+                            <input type="hidden" id="imageEffect" value="">
+                        </div>
+                    </div>
+
+                    <button id="startBtn" disabled class="w-full btn-action py-3 rounded-lg font-bold text-xs uppercase tracking-wide shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2">
+                        Start Migration
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progressArea" class="hidden opacity-0 translate-y-4 transition-all duration-500">
+            <div class="grid lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-4 space-y-4">
+                    <div class="glass-panel p-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="pulse-dot"></div>
+                            <span id="progressTitle" class="text-[10px] font-bold uppercase tracking-wide text-brand-400">Uploading</span>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <div class="text-[10px] font-semibold text-zinc-200 uppercase tracking-wide mb-1">Progress</div>
+                                <div id="percentage" class="text-4xl font-bold text-brand-500 leading-none">0%</div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-zinc-200 uppercase tracking-wide mb-1">Status</div>
+                                <div id="stats" class="text-xs font-medium text-white">Initializing...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="downloadCard" class="hidden glass-panel p-6 border-brand-500/30 bg-brand-500/5">
+                        <h3 class="text-[10px] font-bold uppercase tracking-wide text-brand-400 mb-3">Complete</h3>
+                        <a id="downloadBtn" class="w-full btn-action py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Download Result
+                        </a>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8">
+                    <div class="terminal-window h-full flex flex-col min-h-[250px]">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 rounded-t-xl">
+                            <div class="flex gap-1.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
+                            </div>
+                            <span class="text-[10px] font-semibold text-zinc-200 uppercase tracking-wide">Console Output</span>
+                        </div>
+                        <div id="logs" class="flex-1 p-4 overflow-y-auto font-mono text-[10px] leading-relaxed custom-scrollbar max-h-[300px]">
+                            <div class="text-zinc-300">Waiting to start...</div>
+                        </div>
+                        <div class="p-1 bg-zinc-900 rounded-b-xl border-t border-zinc-800">
+                            <div class="w-full bg-zinc-950 h-1 rounded-b-xl overflow-hidden">
+                                <div id="progressBar" class="h-full bg-brand-500 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const startBtn = document.getElementById('startBtn');
+        const csvFile = document.getElementById('csvFile');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const logs = document.getElementById('logs');
+        const progressBar = document.getElementById('progressBar');
+        const stats = document.getElementById('stats');
+        const percentage = document.getElementById('percentage');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadCard = document.getElementById('downloadCard');
+        const healthStatus = document.getElementById('healthStatus');
+        const progressArea = document.getElementById('progressArea');
+        const progressTitle = document.getElementById('progressTitle');
+        const fileError = document.getElementById('fileError');
+        const imageEffectInput = document.getElementById('imageEffect');
+
+        function selectEffect(val) {
+            imageEffectInput.value = val;
+            document.querySelectorAll('.effect-btn').forEach(btn => {
+                btn.classList.remove('border-brand-500', 'bg-brand-500/10', 'text-brand-400');
+                if (btn.dataset.val === val) {
+                    btn.classList.add('border-brand-500', 'bg-brand-500/10', 'text-brand-400');
+                }
+            });
+        }
+
+        async function checkHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const text = await res.text();
+                let data = {};
+                try { data = JSON.parse(text); } catch(e) {}
+                
+                if (!data.envCreds) {
+                    healthStatus.innerHTML = `<span class="px-3 py-1.5 rounded-md bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-400 flex items-center gap-2"><i data-lucide="shield-alert" class="w-4 h-4"></i> Config Error</span>`;
+                } else {
+                    healthStatus.innerHTML = `<span class="px-3 py-1.5 rounded-md bg-brand-500/10 border border-brand-500/20 text-xs font-semibold text-brand-400 flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4"></i> System Ready</span>`;
+                }
+                lucide.createIcons();
+            } catch (err) {
+                healthStatus.innerHTML = `<span class="px-3 py-1.5 rounded-md bg-zinc-500/10 border border-zinc-500/20 text-xs font-semibold text-zinc-200 flex items-center gap-2"><i data-lucide="wifi-off" class="w-4 h-4"></i> Offline</span>`;
+                lucide.createIcons();
+            }
+        }
+        checkHealth();
+
+        csvFile.addEventListener('change', () => {
+            const file = csvFile.files[0];
+            if (file) {
+                fileNameDisplay.innerText = file.name;
+                if (file.size > 250 * 1024 * 1024) {
+                    fileError.classList.remove('hidden');
+                    startBtn.disabled = true;
+                } else {
+                    fileError.classList.add('hidden');
+                    startBtn.disabled = false;
+                }
+            }
+        });
+
+        startBtn.addEventListener('click', async () => {
+            const file = csvFile.files[0];
+            if (!file) return;
+
+            startBtn.disabled = true;
+            progressArea.classList.remove('hidden');
+            setTimeout(() => progressArea.classList.remove('opacity-0', 'translate-y-4'), 10);
+            
+            progressTitle.innerText = 'Uploading';
+            logs.innerHTML = '<div class="text-brand-400 mb-2 font-semibold text-xs">> Initializing migration...</div>';
+            stats.innerText = 'Preparing upload...';
+            progressBar.style.width = '0%';
+            percentage.innerText = '0%';
+            downloadCard.classList.add('hidden');
+
+            const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            const uploadId = crypto.randomUUID();
+
+            try {
+                let jobId;
+
+                if (file.size <= CHUNK_SIZE) {
+                    // Small file: standard upload
+                    const formData = new FormData();
+                    formData.append('csv', file);
+                    formData.append('effect', imageEffectInput.value);
+
+                    stats.innerText = 'Uploading file...';
+                    const res = await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/api/process');
+                        
+                        xhr.upload.onprogress = (e) => {
+                            if (e.lengthComputable) {
+                                const progress = Math.round((e.loaded / e.total) * 100);
+                                progressBar.style.width = `${progress}%`;
+                                percentage.innerText = `${progress}%`;
+                            }
+                        };
+                        
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve({ ok: true, text: () => Promise.resolve(xhr.responseText) });
+                            } else {
+                                resolve({ 
+                                    ok: false, 
+                                    status: xhr.status, 
+                                    statusText: xhr.statusText, 
+                                    text: () => Promise.resolve(xhr.responseText) 
+                                });
+                            }
+                        };
+                        
+                        xhr.onerror = () => reject(new Error('Network Error'));
+                        xhr.send(formData);
+                    });
+
+                    const text = await res.text();
+                    let data;
+                    try { data = JSON.parse(text); } catch(e) {
+                        throw new Error(res.status === 413 ? 'File is too large for the network infrastructure (413 Payload Too Large).' : `Server error: ${res.status} ${res.statusText}. Response: ${text.substring(0, 100)}`);
+                    }
+                    if (!res.ok) {
+                        throw new Error(data.error || 'Initialization failed');
+                    }
+                    jobId = data.jobId;
+                } else {
+                    // Large file: chunked upload
+                    for (let i = 0; i < totalChunks; i++) {
+                        const start = i * CHUNK_SIZE;
+                        const end = Math.min(start + CHUNK_SIZE, file.size);
+                        const chunk = file.slice(start, end);
+
+                        const formData = new FormData();
+                        formData.append('chunk', chunk);
+                        formData.append('uploadId', uploadId);
+                        formData.append('chunkIndex', i);
+                        formData.append('totalChunks', totalChunks);
+                        formData.append('fileName', file.name);
+
+                        stats.innerText = `Uploading part ${i + 1} of ${totalChunks}...`;
+
+                        const res = await new Promise((resolve, reject) => {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', '/api/upload-chunk');
+                            
+                            xhr.upload.onprogress = (e) => {
+                                if (e.lengthComputable) {
+                                    const chunkProgress = e.loaded / e.total;
+                                    const overallProgress = Math.round(((i + chunkProgress) / totalChunks) * 100);
+                                    progressBar.style.width = `${overallProgress}%`;
+                                    percentage.innerText = `${overallProgress}%`;
+                                }
+                            };
+                            
+                            xhr.onload = () => {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    resolve({ ok: true, text: () => Promise.resolve(xhr.responseText) });
+                                } else {
+                                    resolve({ 
+                                        ok: false, 
+                                        status: xhr.status, 
+                                        statusText: xhr.statusText, 
+                                        text: () => Promise.resolve(xhr.responseText) 
+                                    });
+                                }
+                            };
+                            
+                            xhr.onerror = () => reject(new Error('Network Error'));
+                            xhr.send(formData);
+                        });
+
+                        if (!res.ok) {
+                            const text = await res.text();
+                            let errorMsg = `Chunk ${i} upload failed`;
+                            try {
+                                const errorData = JSON.parse(text);
+                                errorMsg = errorData.error || errorMsg;
+                            } catch(e) {
+                                if (res.status === 413) errorMsg = 'Chunk is too large for the network infrastructure (413 Payload Too Large).';
+                                else errorMsg = `Server error: ${res.status} ${res.statusText}`;
+                            }
+                            throw new Error(errorMsg);
+                        }
+                    }
+
+                    stats.innerText = 'Finalizing upload...';
+                    const res = await fetch('/api/process-chunked', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            uploadId,
+                            totalChunks,
+                            fileName: file.name,
+                            effect: imageEffectInput.value
+                        })
+                    });
+                    const text = await res.text();
+                    let data;
+                    try { data = JSON.parse(text); } catch(e) {
+                        throw new Error(res.status === 413 ? 'Payload too large (413).' : `Server error: ${res.status} ${res.statusText}`);
+                    }
+                    if (!res.ok) {
+                        throw new Error(data.error || 'Finalization failed');
+                    }
+                    jobId = data.jobId;
+                }
+                
+                progressTitle.innerText = 'Processing';
+                const eventSource = new EventSource('/api/progress/' + jobId);
+                eventSource.onmessage = (e) => {
+                    const data = JSON.parse(e.data);
+                    
+                    if (data.logs && data.logs.length > 0) {
+                        data.logs.forEach(log => {
+                            const div = document.createElement('div');
+                            div.className = 'mb-1.5 border-l-2 border-zinc-700 pl-3 py-0.5';
+                            
+                            if (log.startsWith('Failed')) {
+                                div.innerHTML = `<span class="text-yellow-500 font-semibold">[WARN]</span> <span class="text-zinc-100">${log.replace('Failed to process ', '')}</span>`;
+                            } else if (log.startsWith('Fatal')) {
+                                div.innerHTML = `<span class="text-red-400 font-semibold">[FAIL]</span> <span class="text-zinc-100">${log.replace('Fatal Error: ', '')}</span>`;
+                            } else {
+                                div.innerHTML = `<span class="text-brand-500 font-semibold">[INFO]</span> <span class="text-zinc-100">${log}</span>`;
+                            }
+                            logs.appendChild(div);
+                        });
+                        logs.scrollTop = logs.scrollHeight;
+                    }
+
+                    stats.innerText = `${data.stats.success + data.stats.failed} / ${data.stats.total} entries processed`;
+                    const pct = data.stats.total ? Math.round((data.stats.success + data.stats.failed) / data.stats.total * 100) : 0;
+                    progressBar.style.width = pct + '%';
+                    percentage.innerText = pct + '%';
+                    
+                    if (data.status === 'done') {
+                        eventSource.close();
+                        downloadBtn.href = '/api/download/' + jobId;
+                        downloadCard.classList.remove('hidden');
+                        const div = document.createElement('div');
+                        div.className = 'text-brand-400 font-medium mt-4 p-4 bg-brand-500/10 border border-brand-500/20 rounded-lg flex items-center gap-2';
+                        div.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i> Migration completed successfully';
+                        logs.appendChild(div);
+                        lucide.createIcons();
+                        logs.scrollTop = logs.scrollHeight;
+                        stats.innerText = 'All tasks completed.';
+                        startBtn.disabled = false;
+                    } else if (data.status === 'fatal') {
+                        eventSource.close();
+                        const div = document.createElement('div');
+                        div.className = 'text-red-400 font-medium mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2';
+                        div.innerHTML = `<i data-lucide="alert-circle" class="w-5 h-5"></i> Error: ${data.error || 'Unknown'}`;
+                        logs.appendChild(div);
+                        lucide.createIcons();
+                        logs.scrollTop = logs.scrollHeight;
+                        stats.innerText = 'Process terminated.';
+                        startBtn.disabled = false;
+                    }
+                };
+            } catch (err) {
+                logs.innerHTML += `<div class="text-red-400 mt-2 text-xs">!! ERROR: ${err.message}</div>`;
+                startBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

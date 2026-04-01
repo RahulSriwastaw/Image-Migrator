@@ -1,0 +1,5 @@
+{
+  "name": "EduHub Image Migrator",
+  "description": "A standalone internal tool to migrate third-party image URLs in EduHub Q-Bank CSV exports to Cloudinary.",
+  "requestFramePermissions": []
+}
