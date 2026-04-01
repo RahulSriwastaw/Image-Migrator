@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.js",
-    "start": "node server.js",
+    "dev": "tsx api/server.js",
+    "start": "node api/server.js",
     "clean": "rm -rf dist",
-    "lint": "node --check server.js",
+    "lint": "node --check api/server.js",
     "build": "echo 'No build step needed for this Express app'"
   },
   "dependencies": {
@@ -20,6 +20,7 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "multer": "^2.1.1",
+    "streamifier": "^0.1.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
